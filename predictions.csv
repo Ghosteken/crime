@@ -1,0 +1,5 @@
+latitude,longitude,past_crimes,deaths,crime_type_severity_score,time_of_day,day_of_week,user
+5.0,3.0,5,1,5,morning,weekday,mons
+5.0,3.0,5,1,5,morning,weekday,mons
+6.0,7.0,5,1,5,morning,weekday,mons
+7.0,5.0,5,5,5,morning,weekday,mons

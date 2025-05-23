@@ -1,0 +1,42 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# VS Code and PyCharm settings
+.vscode/
+.idea/
+
+# Mac and Linux hidden files
+.DS_Store
+Thumbs.db
+
+# Log and cache files
+*.log
+*.cache
+*.tmp
+*.swp
+
+# Environment variable files
+.env
+.env.*
+
+# Data files (if you don’t want to track big datasets)
+# Uncomment below if needed
+# *.csv
+# *.tsv
+# *.xlsx
+
+# Matplotlib/Seaborn cache
+.matplotlib/
+
+# System files
+desktop.ini

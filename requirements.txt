@@ -1,0 +1,8 @@
+streamlit
+flask
+flask-cors
+scikit-learn
+pandas
+numpy
+folium
+streamlit-folium
