@@ -6,36 +6,26 @@ import requests
 import csv
 import os
 from folium import Popup
+from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderTimedOut
 
 st.set_page_config(layout="wide")
 
-# st.markdown(
-#     """
-#     <style>
-#     /* Make background black */
-#     .stApp {
-#         background-color: #000000;
-#         color: white;
-#     }
-#     /* Adjust headers and text colors */
-#     h1, h2, h3, h4, h5, h6, label, p, span, div {
-#         color: white;
-#     }
-#     /* Style buttons and inputs for dark mode */
-#     button, input, select, textarea {
-#         background-color: #222222;
-#         color: white;
-#         border-color: #444444;
-#     }
-#     /* Folium map background fix */
-#     .folium-map {
-#         background-color: #000000 !important;
-#     }
-#     </style>
-#     """,
-#     unsafe_allow_html=True,
-# )
-
+# Set black background and white text globally
+st.markdown(
+    """
+    <style>
+    .main {
+        background-color: black;
+        color: white;
+    }
+    .stTextInput>div>div>input {
+        color: black;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -56,7 +46,8 @@ if not st.session_state.logged_in:
                 st.success(res.json()["message"])
                 st.session_state.logged_in = True
                 st.session_state.username = username
-                st.rerun()
+                st.stop()
+
             else:
                 st.error(res.json().get("error", "Something went wrong"))
         except Exception as e:
@@ -68,10 +59,27 @@ st.title(f"Crime Map Dashboard - Welcome, {st.session_state.username}")
 if st.button("Logout"):
     st.session_state.logged_in = False
     st.session_state.username = ""
-    st.rerun()
+    st.stop()
 
-map = folium.Map(location=[7.0, 5.0], zoom_start=6)
+# Initialize geolocator once
+geolocator = Nominatim(user_agent="crime-predictor-app")
 
+def get_address(lat, lon):
+    try:
+        location = geolocator.reverse((lat, lon), timeout=10)
+        if location is not None:
+            return location.address
+        else:
+            return "Unknown location"
+    except GeocoderTimedOut:
+        return "Location timeout"
+
+# Create Folium map centered somewhere neutral
+map_center = [7.0, 5.0]
+map_zoom = 6
+map = folium.Map(location=map_center, zoom_start=map_zoom)
+
+# Load crime records from SQLite and add to map
 conn = sqlite3.connect("crime.db")
 cursor = conn.cursor()
 cursor.execute("""
@@ -83,21 +91,34 @@ CREATE TABLE IF NOT EXISTS CrimeRecord (
 )""")
 records = cursor.execute("SELECT * FROM CrimeRecord").fetchall()
 for r in records:
-    folium.CircleMarker(location=[r[2], r[3]], radius=10, color="red", fill=True, tooltip=r[1]).add_to(map)
+    addr = get_address(r[2], r[3])
+    folium.CircleMarker(
+        location=[r[2], r[3]],
+        radius=10,
+        color="red",
+        fill=True,
+        tooltip=addr,
+        popup=f"{r[1]} at {addr}"
+    ).add_to(map)
 
+# Load previous predictions and add to map with reverse geocoded address
 if os.path.exists("predictions.csv"):
     with open("predictions.csv", "r") as f:
         reader = csv.DictReader(f)
         for row in reader:
+            lat = float(row["latitude"])
+            lon = float(row["longitude"])
+            addr = get_address(lat, lon)
             folium.CircleMarker(
-                location=[float(row["latitude"]), float(row["longitude"])],
+                location=[lat, lon],
                 radius=12,
                 color="blue",
                 fill=True,
                 fill_opacity=0.8,
-                tooltip=f"🔵 Predicted by {row.get('user', 'unknown')}"
+                popup=f"🔵 Predicted by {row.get('user', 'unknown')} at {addr}",
             ).add_to(map)
 
+# Load dataset and add high risk predicted points with reverse geocoded address
 DATASET_PATH = "network_logs.csv"
 if os.path.exists(DATASET_PATH):
     try:
@@ -115,28 +136,30 @@ if os.path.exists(DATASET_PATH):
                 }
                 res = requests.post("http://localhost:5000/predict", json=payload)
                 if res.ok and res.json().get("risk", 0) == 1:
+                    lat = payload["latitude"]
+                    lon = payload["longitude"]
+                    addr = get_address(lat, lon)
                     folium.CircleMarker(
-                        location=[payload["latitude"], payload["longitude"]],
+                        location=[lat, lon],
                         radius=12,
                         color="blue",
                         fill=True,
                         fill_opacity=0.8,
-                        tooltip="🔵 Predicted High Risk"
+                        popup=f"🔵 Predicted High Risk at {addr}",
                     ).add_to(map)
     except Exception as e:
         st.error(f"❌ Failed to load model predictions from dataset: {e}")
 
 st.subheader("Predict Crime Risk at a New Location")
 with st.form("predict_form"):
-    lat = st.number_input("Latitude", 1, 100)
-    lon = st.number_input("Longitude", 1, 100)
+    lat = st.number_input("Latitude", -90.0, 90.0, 7.0)
+    lon = st.number_input("Longitude", -180.0, 180.0, 5.0)
     past_crimes = st.slider("Past Crimes", 0, 20, 5)
     deaths = st.slider("Deaths", 0, 20, 1)
     severity = st.slider("Severity Score", 1, 10, 5)
     time_of_day = st.selectbox("Time of Day", ["morning", "afternoon", "night"])
     day_of_week = st.selectbox("Day", ["weekday", "weekend"])
     submit = st.form_submit_button("Predict")
-
 
 if submit:
     payload = {
@@ -156,18 +179,19 @@ if submit:
             result = res.json()
             risk = result.get("risk", 0)
             crime_type = result.get("crime_type", "Unknown")
-            popup_msg = f"{'High' if risk == 1 else 'Low'} Crime Risk - {crime_type}"
+            addr = get_address(lat, lon)
+            popup_msg = f"{'High' if risk == 1 else 'Low'} Crime Risk - {crime_type} at {addr}"
             color = "blue" if risk == 1 else "green"
 
             popup = Popup(popup_msg, max_width=300)
             marker = folium.Marker(location=[lat, lon], popup=popup, icon=folium.Icon(color=color))
             marker.add_to(map)
-            popup.add_to(map)
 
-            # Recreate map centered on predicted location with zoom 12
+            # Center map on the predicted location with zoom 12
             map.location = [lat, lon]
             map.zoom_start = 12
 
+            # Save prediction to CSV if high risk
             if risk == 1:
                 file_exists = os.path.exists("predictions.csv")
                 with open("predictions.csv", "a", newline="") as f:
