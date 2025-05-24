@@ -4,3 +4,8 @@ latitude,longitude,past_crimes,deaths,crime_type_severity_score,time_of_day,day_
 6.0,7.0,5,1,5,morning,weekday,mons
 7.0,5.0,5,5,5,morning,weekday,mons
 70,55,12,10,6,night,weekend,mons
+50,50,5,1,5,morning,weekday,mons
+50,50,5,1,5,morning,weekday,mons
+50,50,5,1,5,morning,weekday,mons
+50,50,5,1,5,morning,weekday,mons
+50,50,5,1,5,morning,weekday,mons
