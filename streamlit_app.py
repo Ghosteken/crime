@@ -102,10 +102,10 @@ if os.path.exists(DATASET_PATH):
 
 st.subheader("Predict Crime Risk at a New Location")
 with st.form("predict_form"):
-    lat = st.number_input("Latitude", 5.0, 9.0)
-    lon = st.number_input("Longitude", 3.0, 7.0)
+    lat = st.number_input("Latitude", 1, 100)
+    lon = st.number_input("Longitude", 1, 100)
     past_crimes = st.slider("Past Crimes", 0, 20, 5)
-    deaths = st.slider("Deaths", 0, 10, 1)
+    deaths = st.slider("Deaths", 0, 20, 1)
     severity = st.slider("Severity Score", 1, 10, 5)
     time_of_day = st.selectbox("Time of Day", ["morning", "afternoon", "night"])
     day_of_week = st.selectbox("Day", ["weekday", "weekend"])
